@@ -5,7 +5,7 @@
 ## Basic usage
 
 ```typescript
-import { deleteMany } from "zodmongo";
+import { deleteMany } from "@mauroandre/zodmongo";
 
 await deleteMany("users", { email: "old@example.com" });
 ```

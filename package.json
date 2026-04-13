@@ -1,5 +1,5 @@
 {
-  "name": "zodmongo",
+  "name": "@mauroandre/zodmongo",
   "version": "0.0.1",
   "description": "Lightweight MongoDB ODM with Zod validation. TypeScript-first, no Mongoose.",
   "type": "module",

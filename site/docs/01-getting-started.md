@@ -5,7 +5,7 @@ ZodMongo is a lightweight MongoDB ODM powered by Zod schemas. It's built on the 
 ## Install
 
 ```bash
-npm install zodmongo
+npm install @mauroandre/zodmongo
 ```
 
 ZodMongo has two peer dependencies: `mongodb` and `zod`. Both are included as regular dependencies, so they're installed automatically.
@@ -13,7 +13,7 @@ ZodMongo has two peer dependencies: `mongodb` and `zod`. Both are included as re
 ## Connect to MongoDB
 
 ```typescript
-import { connect, close } from "zodmongo";
+import { connect, close } from "@mauroandre/zodmongo";
 
 await connect("mongodb://localhost:27017", "mydb");
 
@@ -27,7 +27,7 @@ await close();
 Use `dbSchema` to create a model. It automatically includes `id`, `createdAt`, and `updatedAt`.
 
 ```typescript
-import { dbSchema } from "zodmongo";
+import { dbSchema } from "@mauroandre/zodmongo";
 import { z } from "zod/v4";
 
 const userSchema = dbSchema({
@@ -42,7 +42,7 @@ type User = z.infer<typeof userSchema>;
 ## Basic CRUD
 
 ```typescript
-import { save, findMany, deleteMany } from "zodmongo";
+import { save, findMany, deleteMany } from "@mauroandre/zodmongo";
 
 // Insert
 const user = userSchema.parse({ name: "Mauro", email: "mauro@example.com" });

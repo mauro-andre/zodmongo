@@ -5,7 +5,7 @@ ZodMongo manages a single MongoDB connection. You connect once and use it throug
 ## connect
 
 ```typescript
-import { connect } from "zodmongo";
+import { connect } from "@mauroandre/zodmongo";
 
 const db = await connect("mongodb://localhost:27017", "mydb");
 ```
@@ -17,7 +17,7 @@ const db = await connect("mongodb://localhost:27017", "mydb");
 Access the current database instance anywhere in your code:
 
 ```typescript
-import { getDb } from "zodmongo";
+import { getDb } from "@mauroandre/zodmongo";
 
 const db = getDb();
 const collection = db.collection("users");
@@ -30,7 +30,7 @@ Throws an error if called before `connect()`.
 Closes the connection. Waits for all tracked promises to complete first.
 
 ```typescript
-import { close } from "zodmongo";
+import { close } from "@mauroandre/zodmongo";
 
 await close();
 ```
@@ -40,7 +40,7 @@ await close();
 For fire-and-forget operations, use `trackPromise` to ensure `close()` waits for them:
 
 ```typescript
-import { trackPromise, save, close } from "zodmongo";
+import { trackPromise, save, close } from "@mauroandre/zodmongo";
 
 // Fire and forget — but close() will wait for it
 trackPromise(save("logs", logEntry));

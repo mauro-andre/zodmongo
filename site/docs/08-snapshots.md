@@ -13,7 +13,7 @@ Use snapshots for denormalized data that you want to store as a full copy:
 ## Declaring a snapshot
 
 ```typescript
-import { dbSchema, snapshot, relation } from "zodmongo";
+import { dbSchema, snapshot, relation } from "@mauroandre/zodmongo";
 import { z } from "zod/v4";
 
 const companySchema = dbSchema({

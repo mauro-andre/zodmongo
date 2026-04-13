@@ -17,14 +17,14 @@ Lightweight MongoDB ODM powered by [Zod](https://zod.dev) schemas. TypeScript-fi
 ## Install
 
 ```bash
-npm install zodmongo
+npm install @mauroandre/zodmongo
 ```
 
 ## Quick Start
 
 ```typescript
-import { connect, close, save, findMany, deleteMany } from "zodmongo";
-import { dbSchema } from "zodmongo";
+import { connect, close, save, findMany, deleteMany } from "@mauroandre/zodmongo";
+import { dbSchema } from "@mauroandre/zodmongo";
 import { z } from "zod/v4";
 
 // Connect
@@ -64,7 +64,7 @@ await close();
 Creates a schema that extends the base model with `id`, `createdAt`, and `updatedAt`. This is the primary way to define your models.
 
 ```typescript
-import { dbSchema } from "zodmongo";
+import { dbSchema } from "@mauroandre/zodmongo";
 import { z } from "zod/v4";
 
 const postSchema = dbSchema({
@@ -81,7 +81,7 @@ type Post = z.infer<typeof postSchema>;
 Creates a schema **without** the base model fields (`id`, `createdAt`, `updatedAt`). Use for nested objects that don't need their own identity.
 
 ```typescript
-import { embeddedSchema } from "zodmongo";
+import { embeddedSchema } from "@mauroandre/zodmongo";
 import { z } from "zod/v4";
 
 const addressSchema = embeddedSchema({
@@ -101,7 +101,7 @@ const userSchema = dbSchema({
 Low-level schemas if you need to extend manually:
 
 ```typescript
-import { dbModelSchema, idSchema } from "zodmongo/schema";
+import { dbModelSchema, idSchema } from "@mauroandre/zodmongo/schema";
 
 const customSchema = dbModelSchema.extend({
     name: z.string(),
@@ -310,7 +310,7 @@ ZodMongo automatically handles conversions between your app's `id` (string) and 
 Use `trackPromise()` to register fire-and-forget operations. `close()` waits for all tracked promises before disconnecting.
 
 ```typescript
-import { trackPromise, close } from "zodmongo";
+import { trackPromise, close } from "@mauroandre/zodmongo";
 
 trackPromise(save("logs", logEntry));
 trackPromise(save("logs", anotherEntry));

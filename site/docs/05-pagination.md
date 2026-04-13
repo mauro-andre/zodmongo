@@ -5,7 +5,7 @@ ZodMongo has built-in pagination using MongoDB's `$facet` aggregation. One query
 ## Basic usage
 
 ```typescript
-import { findMany } from "zodmongo";
+import { findMany } from "@mauroandre/zodmongo";
 
 const page = await findMany<User>("users", {}, {
     paginate: true,

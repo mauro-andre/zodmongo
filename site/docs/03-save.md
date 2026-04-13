@@ -7,7 +7,7 @@ The `save` function is a smart upsert. It inserts when there's no `id`, and upda
 Parse a document with no `id` and save it. ZodMongo generates a new ObjectId and assigns it to `doc.id`.
 
 ```typescript
-import { save } from "zodmongo";
+import { save } from "@mauroandre/zodmongo";
 
 const user = userSchema.parse({ name: "Mauro", email: "mauro@example.com" });
 console.log(user.id); // null

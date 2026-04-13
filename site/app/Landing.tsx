@@ -75,7 +75,7 @@ export const Component = () => {
             {/* Install */}
             <section class={css.installSection}>
                 <h2 class={css.sectionTitle}>Get started in seconds</h2>
-                <code class={css.installCode}>npm install zodmongo</code>
+                <code class={css.installCode}>npm install @mauroandre/zodmongo</code>
             </section>
 
             {/* Features */}

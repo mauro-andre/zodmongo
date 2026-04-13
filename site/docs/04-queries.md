@@ -5,7 +5,7 @@
 ## Find all
 
 ```typescript
-import { findMany } from "zodmongo";
+import { findMany } from "@mauroandre/zodmongo";
 
 const users = await findMany<User>("users");
 ```

@@ -7,7 +7,7 @@ ZodMongo uses Zod schemas to define your models. Every document has three automa
 The primary way to define a model. Extends the base model with your custom fields.
 
 ```typescript
-import { dbSchema } from "zodmongo";
+import { dbSchema } from "@mauroandre/zodmongo";
 import { z } from "zod/v4";
 
 const postSchema = dbSchema({
@@ -27,7 +27,7 @@ The `id` field is `null` for new documents. After saving, ZodMongo assigns the g
 For nested objects that don't need their own `id`, `createdAt`, or `updatedAt`.
 
 ```typescript
-import { embeddedSchema } from "zodmongo";
+import { embeddedSchema } from "@mauroandre/zodmongo";
 import { z } from "zod/v4";
 
 const addressSchema = embeddedSchema({
@@ -47,7 +47,7 @@ const userSchema = dbSchema({
 A Zod string schema that validates the value is a valid MongoDB ObjectId.
 
 ```typescript
-import { idSchema } from "zodmongo/schema";
+import { idSchema } from "@mauroandre/zodmongo/schema";
 
 idSchema.parse("507f1f77bcf86cd799439011"); // ok
 idSchema.parse("invalid"); // throws ZodError
@@ -58,7 +58,7 @@ idSchema.parse("invalid"); // throws ZodError
 The base schema used internally by `dbSchema`. You can extend it manually if needed.
 
 ```typescript
-import { dbModelSchema } from "zodmongo/schema";
+import { dbModelSchema } from "@mauroandre/zodmongo/schema";
 import { z } from "zod/v4";
 
 const customSchema = dbModelSchema.extend({

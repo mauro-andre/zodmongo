@@ -7,7 +7,7 @@ ZodMongo can generate `$lookup` aggregation pipelines from your schema definitio
 Use `relation()` to mark a field as a reference:
 
 ```typescript
-import { dbSchema, relation } from "zodmongo";
+import { dbSchema, relation } from "@mauroandre/zodmongo";
 import { z } from "zod/v4";
 
 const companySchema = dbSchema({
@@ -83,7 +83,7 @@ const userSchema = dbSchema({
 ## Using pipelines with findMany
 
 ```typescript
-import { getPipeline, findMany } from "zodmongo";
+import { getPipeline, findMany } from "@mauroandre/zodmongo";
 
 const pipeline = getPipeline(userSchema);
 const users = await findMany<User>("users", [
@@ -97,7 +97,7 @@ const users = await findMany<User>("users", [
 Use `toSave()` to convert relation objects back to ObjectIds before saving:
 
 ```typescript
-import { toSave, save } from "zodmongo";
+import { toSave, save } from "@mauroandre/zodmongo";
 
 const dataToSave = toSave(userSchema, userData);
 // dataToSave.company is now an ObjectId (not the full object)
