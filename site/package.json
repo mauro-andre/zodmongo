@@ -1,0 +1,20 @@
+{
+    "name": "zodmongo-site",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "dev": "npx velojs dev",
+        "build": "npx velojs build --static"
+    },
+    "dependencies": {
+        "@mauroandre/velojs": "^0.0.12"
+    },
+    "devDependencies": {
+        "@vanilla-extract/css": "^1.20.1",
+        "@vanilla-extract/vite-plugin": "^5.2.2",
+        "marked": "^18.0.0",
+        "shiki": "^4.0.2",
+        "typescript": "^6.0.2",
+        "vite": "^8.0.8"
+    }
+}
