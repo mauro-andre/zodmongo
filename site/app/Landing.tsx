@@ -1,34 +1,42 @@
 import { Link } from "@mauroandre/velojs";
+import {
+    Code,
+    Database,
+    Terminal,
+    Link as LinkIcon,
+    ChartBar,
+    SwitchHorizontal,
+} from "./scarlab-icons.js";
 import * as css from "./Landing.css.js";
 
 const features = [
     {
-        icon: "Z",
+        Icon: Code,
         title: "Zod-Native Schemas",
         desc: "Define your models with Zod. Types are inferred automatically. No proprietary schema format, no decorators.",
     },
     {
-        icon: "D",
+        Icon: Database,
         title: "Native MongoDB Driver",
         desc: "Built directly on the official MongoDB driver. No Mongoose overhead, no hidden abstractions. Just fast, direct access.",
     },
     {
-        icon: "T",
+        Icon: Terminal,
         title: "TypeScript-First",
         desc: "Full type inference from your Zod schemas. Autocomplete for queries, documents, and pagination — everywhere.",
     },
     {
-        icon: "R",
+        Icon: LinkIcon,
         title: "Relations & Lookups",
         desc: "Declare references between collections. The ODM generates $lookup pipelines automatically from your schema.",
     },
     {
-        icon: "P",
+        Icon: ChartBar,
         title: "Built-in Pagination",
         desc: "Paginated queries via $facet in a single aggregation call. Page metadata included — no extra count query.",
     },
     {
-        icon: "I",
+        Icon: SwitchHorizontal,
         title: "Transparent id/ObjectId",
         desc: "Work with id (string) in your app, _id (ObjectId) in MongoDB. Bidirectional conversion is automatic and recursive.",
     },
@@ -79,7 +87,9 @@ export const Component = () => {
                 <div class={css.featuresGrid}>
                     {features.map((f, i) => (
                         <div key={i} class={css.featureCard}>
-                            <span class={css.featureIcon}>{f.icon}</span>
+                            <span class={css.featureIcon}>
+                                <f.Icon size={28} />
+                            </span>
                             <h3 class={css.featureTitle}>{f.title}</h3>
                             <p class={css.featureDesc}>{f.desc}</p>
                         </div>

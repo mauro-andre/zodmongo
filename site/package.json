@@ -4,7 +4,7 @@
     "type": "module",
     "scripts": {
         "dev": "npx velojs dev",
-        "build": "npx velojs build --static"
+        "build": "npx velojs build --static && cd dist && zip -r ../site.zip . && cd .. && echo 'site.zip ready'"
     },
     "dependencies": {
         "@mauroandre/velojs": "^0.0.12"
