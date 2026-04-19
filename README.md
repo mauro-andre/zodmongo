@@ -260,6 +260,23 @@ const postSchema = dbSchema({
 });
 ```
 
+#### Reverse relations
+
+When a field is a populated destination (not a stored reference), use `localField` to match on another field of the same document:
+
+```typescript
+const appSchema = dbSchema({
+    quadletName: z.string(),
+    policy: relation(backupPolicySchema, {
+        collection: "backupPolicies",
+        localField: "quadletName", // match on quadletName
+        foreignField: "app",       // against backupPolicies.app
+    }),
+});
+```
+
+`toSave()` automatically omits reverse relation fields from the saved document.
+
 ### `snapshot(schema)`
 
 Marks a field as a persisted copy. The ODM will **not** generate `$lookup` for it and will **not** convert it to ObjectId when saving. Useful for denormalized data you want to store as-is.

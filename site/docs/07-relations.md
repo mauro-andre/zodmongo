@@ -60,6 +60,36 @@ const postSchema = dbSchema({
 });
 ```
 
+## Reverse relations
+
+In a forward relation, the local field stores the reference. In a **reverse relation**, the field is a destination populated by the lookup — the match uses a different field of the same document.
+
+Use `localField` to override which local field the lookup should match on:
+
+```typescript
+const backupPolicySchema = dbSchema({
+    app: z.string(),
+    schedule: z.string(),
+});
+
+const appSchema = dbSchema({
+    quadletName: z.string(),
+    policy: relation(backupPolicySchema, {
+        collection: "backupPolicies",
+        localField: "quadletName", // match on this doc's quadletName
+        foreignField: "app",       // against backupPolicies.app
+    }),
+});
+```
+
+The generated `$lookup` uses `quadletName` as the local field, not `policy`:
+
+```json
+{ "$lookup": { "from": "backupPolicies", "localField": "quadletName", "foreignField": "app", "as": "policy" } }
+```
+
+**When saving**, `toSave()` automatically **omits** reverse relation fields (where `localField` differs from the field name) — they're not stored in the document, they're populated on read.
+
 ## Nested relations
 
 Relations can be nested. The pipeline generation is recursive:

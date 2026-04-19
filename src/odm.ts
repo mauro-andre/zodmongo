@@ -10,6 +10,7 @@ import { dbModelSchema } from "./schema.js";
 interface RelationConfig {
     collection: string;
     foreignField?: string;
+    localField?: string;
 }
 
 interface RelationMeta {
@@ -131,7 +132,7 @@ const generatePipeline = (schema: z.ZodTypeAny): Document[] => {
                 pipeline.push({
                     $lookup: {
                         from: relationMeta.collection,
-                        localField: prefix,
+                        localField: relationMeta.localField ?? prefix,
                         foreignField: relationMeta.foreignField ?? "_id",
                         as: prefix,
                         ...(nestedPipeline.length > 0 && {
@@ -176,7 +177,7 @@ const generatePipeline = (schema: z.ZodTypeAny): Document[] => {
                     pipeline.push({
                         $lookup: {
                             from: relationMeta.collection,
-                            localField: fieldPath,
+                            localField: relationMeta.localField ?? fieldPath,
                             foreignField: relationMeta.foreignField ?? "_id",
                             as: fieldPath,
                             ...(nestedPipeline.length > 0 && {
@@ -213,7 +214,20 @@ const generatePipeline = (schema: z.ZodTypeAny): Document[] => {
 };
 
 /**
- * Transform data for saving - converts relations to ObjectIds recursively
+ * A reverse relation is one where `localField` is set to a field different
+ * from the field itself. The value lives elsewhere in the document — this
+ * field is a populated destination, not stored data.
+ */
+const isReverseRelation = (schema: z.ZodTypeAny, fieldName: string): boolean => {
+    const unwrapped = unwrapSchema(schema);
+    const meta = getRelationMeta(schema) ?? getRelationMeta(unwrapped);
+    if (!meta || !meta.localField) return false;
+    return meta.localField !== fieldName;
+};
+
+/**
+ * Transform data for saving - converts relations to ObjectIds recursively.
+ * Reverse relations (localField !== field name) are omitted from the output.
  */
 const transformForSave = (schema: z.ZodTypeAny, data: any): any => {
     if (data === null || data === undefined) return data;
@@ -242,6 +256,21 @@ const transformForSave = (schema: z.ZodTypeAny, data: any): any => {
 
         const result: any = { ...data };
         for (const [key, fieldSchema] of Object.entries(shape)) {
+            if (isReverseRelation(fieldSchema, key)) {
+                delete result[key];
+                continue;
+            }
+
+            // Array of reverse relations
+            const fieldUnwrapped = unwrapSchema(fieldSchema);
+            if (isArraySchema(fieldUnwrapped)) {
+                const innerSchema = getArrayElement(fieldUnwrapped);
+                if (innerSchema && isReverseRelation(innerSchema, key)) {
+                    delete result[key];
+                    continue;
+                }
+            }
+
             if (key in data) {
                 result[key] = transformForSave(fieldSchema, data[key]);
             }

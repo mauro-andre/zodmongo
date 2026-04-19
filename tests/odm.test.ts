@@ -328,6 +328,60 @@ describe("getPipeline", () => {
         expect(lookupStage!.$lookup.foreignField).toBe("slug");
     });
 
+    it("should default localField to the field path (forward relation)", () => {
+        const companySchema = dbSchema({ name: z.string() });
+        const userSchema = dbSchema({
+            name: z.string(),
+            company: relation(companySchema, { collection: "companies" }),
+        });
+
+        const pipeline = getPipeline(userSchema);
+        const lookupStage = pipeline.find((s) => s.$lookup);
+        expect(lookupStage!.$lookup.localField).toBe("company");
+    });
+
+    it("should use custom localField in $lookup (reverse relation)", () => {
+        const backupPolicySchema = dbSchema({
+            app: z.string(),
+            schedule: z.string(),
+        });
+
+        const appSchema = dbSchema({
+            quadletName: z.string(),
+            policy: relation(backupPolicySchema, {
+                collection: "backupPolicies",
+                localField: "quadletName",
+                foreignField: "app",
+            }),
+        });
+
+        const pipeline = getPipeline(appSchema);
+        const lookupStage = pipeline.find(
+            (s) => s.$lookup && s.$lookup.from === "backupPolicies",
+        );
+        expect(lookupStage).toBeDefined();
+        expect(lookupStage!.$lookup.localField).toBe("quadletName");
+        expect(lookupStage!.$lookup.foreignField).toBe("app");
+        expect(lookupStage!.$lookup.as).toBe("policy");
+    });
+
+    it("should still generate $set for reverse single relation", () => {
+        const backupPolicySchema = dbSchema({ app: z.string() });
+        const appSchema = dbSchema({
+            quadletName: z.string(),
+            policy: relation(backupPolicySchema, {
+                collection: "backupPolicies",
+                localField: "quadletName",
+                foreignField: "app",
+            }),
+        });
+
+        const pipeline = getPipeline(appSchema);
+        const setStage = pipeline.find((s) => s.$set?.policy);
+        expect(setStage).toBeDefined();
+        expect(setStage!.$set.policy).toEqual({ $arrayElemAt: ["$policy", 0] });
+    });
+
     it("should handle embedded objects recursively", () => {
         const schema = dbSchema({
             name: z.string(),
@@ -491,5 +545,66 @@ describe("toSave", () => {
 
         const result = toSave(userSchema, { name: "Mauro" });
         expect(result.tags).toEqual([]);
+    });
+
+    it("should omit reverse relation fields (single)", () => {
+        const backupPolicySchema = dbSchema({ app: z.string(), schedule: z.string() });
+
+        const appSchema = dbSchema({
+            quadletName: z.string(),
+            policy: relation(backupPolicySchema, {
+                collection: "backupPolicies",
+                localField: "quadletName",
+                foreignField: "app",
+            }).nullable().optional(),
+        });
+
+        const result = toSave(appSchema, {
+            quadletName: "my-stack-db",
+            policy: null,
+        });
+
+        expect(result.quadletName).toBe("my-stack-db");
+        expect("policy" in result).toBe(false);
+    });
+
+    it("should omit reverse relation fields (array)", () => {
+        const backupPolicySchema = dbSchema({ app: z.string() });
+
+        const appSchema = dbSchema({
+            quadletName: z.string(),
+            policies: z.array(
+                relation(backupPolicySchema, {
+                    collection: "backupPolicies",
+                    localField: "quadletName",
+                    foreignField: "app",
+                }),
+            ).default([]),
+        });
+
+        const result = toSave(appSchema, {
+            quadletName: "my-stack-db",
+            policies: [],
+        });
+
+        expect(result.quadletName).toBe("my-stack-db");
+        expect("policies" in result).toBe(false);
+    });
+
+    it("should still convert forward relation fields to ObjectId (no localField)", () => {
+        const companyId = new ObjectId().toString();
+        const companySchema = dbSchema({ name: z.string() });
+
+        const userSchema = dbSchema({
+            name: z.string(),
+            company: relation(companySchema, { collection: "companies" }),
+        });
+
+        const result = toSave(userSchema, {
+            name: "Mauro",
+            company: { id: companyId, name: "Acme", createdAt: null, updatedAt: null },
+        });
+
+        expect(result.company).toBeInstanceOf(ObjectId);
     });
 });
