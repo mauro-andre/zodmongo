@@ -277,6 +277,10 @@ const appSchema = dbSchema({
 
 `toSave()` automatically omits reverse relation fields from the saved document.
 
+#### Circular references
+
+If two schemas reference each other (e.g. `User ↔ Company`), ZodMongo detects the cycle and truncates the nested pipeline — the outer lookups expand normally, but once a collection appears in the ancestor chain, the inner `$lookup` is generated without a nested pipeline. Sibling references to the same collection are not affected.
+
 ### `snapshot(schema)`
 
 Marks a field as a persisted copy. The ODM will **not** generate `$lookup` for it and will **not** convert it to ObjectId when saving. Useful for denormalized data you want to store as-is.

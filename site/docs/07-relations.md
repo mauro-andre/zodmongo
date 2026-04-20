@@ -90,6 +90,34 @@ The generated `$lookup` uses `quadletName` as the local field, not `policy`:
 
 **When saving**, `toSave()` automatically **omits** reverse relation fields (where `localField` differs from the field name) — they're not stored in the document, they're populated on read.
 
+## Circular references
+
+If two schemas reference each other (`User → Company → User`), ZodMongo detects the cycle automatically and **truncates** the nested pipeline at the point of recurrence. The outer lookups expand normally, but once a collection is seen in the ancestor chain, the inner `$lookup` is generated without a nested `pipeline`.
+
+Example with `User ↔ Company`:
+
+```typescript
+const userSchema = dbSchema({
+    name: z.string(),
+    company: relation(companySchema, { collection: "companies" }),
+});
+
+const companySchema = dbSchema({
+    name: z.string(),
+    owner: relation(userSchema, { collection: "users" }),
+});
+```
+
+`getPipeline(userSchema)` produces three lookups:
+
+1. `users → companies` (expanded, nested pipeline included)
+2. Inside it: `companies → users` (expanded, nested pipeline included)
+3. Inside that: `users → companies` (**truncated** — no nested pipeline)
+
+This prevents stack overflows and keeps the pipeline finite. Sibling references to the same collection are not affected — only ancestors count as cycles.
+
+You can also pass a pre-seeded `visited` set to `getPipeline(schema, new Set([...]))` to force truncation from the start (useful for composing pipelines manually).
+
 ## Nested relations
 
 Relations can be nested. The pipeline generation is recursive:

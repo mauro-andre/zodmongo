@@ -90,7 +90,7 @@ describe("save", () => {
 
         const docs = await findMany<User>("users", { id: originalId });
         expect(docs).toHaveLength(1);
-        expect(docs[0].name).toBe("Updated");
+        expect(docs[0]!.name).toBe("Updated");
     });
 
     it("should set updatedAt on update", async () => {
@@ -131,7 +131,7 @@ describe("save", () => {
 
         const docs = await findMany<User>("users", { email: "u@b.com" });
         expect(docs).toHaveLength(1);
-        expect(docs[0].name).toBe("Upsert");
+        expect(docs[0]!.name).toBe("Upsert");
 
         // Upsert again with same filter — should update, not insert
         const user2 = userSchema.parse({ name: "UpsertUpdated", email: "u@b.com" });
@@ -139,7 +139,7 @@ describe("save", () => {
 
         const docs2 = await findMany<User>("users", { email: "u@b.com" });
         expect(docs2).toHaveLength(1);
-        expect(docs2[0].name).toBe("UpsertUpdated");
+        expect(docs2[0]!.name).toBe("UpsertUpdated");
     });
 
     it("should convert id to _id in filter", async () => {
@@ -151,7 +151,7 @@ describe("save", () => {
 
         const docs = await findMany<User>("users", { id: user.id });
         expect(docs).toHaveLength(1);
-        expect(docs[0].name).toBe("FilterIdUpdated");
+        expect(docs[0]!.name).toBe("FilterIdUpdated");
     });
 
     it("should convert _id string to ObjectId in filter", async () => {
@@ -163,7 +163,7 @@ describe("save", () => {
 
         const docs = await findMany<User>("users", { id: user.id });
         expect(docs).toHaveLength(1);
-        expect(docs[0].name).toBe("StrFilterUpdated");
+        expect(docs[0]!.name).toBe("StrFilterUpdated");
     });
 
     it("should convert ObjectId strings in nested fields on save", async () => {
@@ -225,23 +225,23 @@ describe("findMany", () => {
     it("should fetch with simple match", async () => {
         const docs = await findMany<User>("users", { name: "User1" });
         expect(docs).toHaveLength(1);
-        expect(docs[0].name).toBe("User1");
+        expect(docs[0]!.name).toBe("User1");
     });
 
     it("should return id as string (not _id)", async () => {
         const docs = await findMany<User>("users", { name: "User1" });
-        expect(docs[0].id).toBeDefined();
-        expect(typeof docs[0].id).toBe("string");
+        expect(docs[0]!.id).toBeDefined();
+        expect(typeof docs[0]!.id).toBe("string");
         expect((docs[0] as any)._id).toBeUndefined();
     });
 
     it("should fetch by id", async () => {
         const allDocs = await findMany<User>("users");
-        const firstId = allDocs[0].id;
+        const firstId = allDocs[0]!.id;
 
         const docs = await findMany<User>("users", { id: firstId });
         expect(docs).toHaveLength(1);
-        expect(docs[0].id).toBe(firstId);
+        expect(docs[0]!.id).toBe(firstId);
     });
 
     it("should fetch with custom pipeline", async () => {
@@ -250,7 +250,7 @@ describe("findMany", () => {
             { $sort: { age: 1 } },
         ]);
         expect(docs).toHaveLength(3);
-        expect(docs[0].name).toBe("User3");
+        expect(docs[0]!.name).toBe("User3");
     });
 
     it("should fetch with $limit in pipeline", async () => {
@@ -267,8 +267,8 @@ describe("findMany", () => {
             { $project: { name: 1 } },
         ]);
         expect(docs).toHaveLength(1);
-        expect(docs[0].name).toBe("User1");
-        expect(docs[0].email).toBeUndefined();
+        expect(docs[0]!.name).toBe("User1");
+        expect(docs[0]!.email).toBeUndefined();
     });
 
     it("should return empty array when nothing found", async () => {
@@ -278,13 +278,13 @@ describe("findMany", () => {
 
     it("should convert id in $match within pipeline", async () => {
         const allDocs = await findMany<User>("users");
-        const firstId = allDocs[0].id;
+        const firstId = allDocs[0]!.id;
 
         const docs = await findMany<User>("users", [
             { $match: { id: firstId } },
         ]);
         expect(docs).toHaveLength(1);
-        expect(docs[0].id).toBe(firstId);
+        expect(docs[0]!.id).toBe(firstId);
     });
 
     it("should return empty array for empty collection", async () => {
@@ -462,7 +462,7 @@ describe("deleteMany", () => {
 
     it("should delete by id", async () => {
         const docs = await findMany<User>("users", { name: "Del1" });
-        const result = await deleteMany("users", { id: docs[0].id });
+        const result = await deleteMany("users", { id: docs[0]!.id });
         expect(result.deletedCount).toBe(1);
     });
 

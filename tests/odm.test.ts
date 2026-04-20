@@ -65,7 +65,7 @@ describe("dbSchema", () => {
         const transformed = userSchema.transform((data) => ({
             ...data,
             slug: data.name.toLowerCase(),
-        }));
+        })) as any;
 
         expect(typeof transformed.pipeline).toBe("function");
         const pipeline = transformed.pipeline();
@@ -80,7 +80,7 @@ describe("dbSchema", () => {
         const transformed = userSchema.transform((data) => ({
             ...data,
             slug: data.name.toLowerCase(),
-        }));
+        })) as any;
 
         expect(typeof transformed.toSave).toBe("function");
     });
@@ -121,7 +121,7 @@ describe("embeddedSchema", () => {
 
     it("should preserve pipeline() after .transform()", () => {
         const schema = embeddedSchema({ name: z.string() });
-        const transformed = schema.transform((data) => ({ ...data, upper: data.name.toUpperCase() }));
+        const transformed = schema.transform((data) => ({ ...data, upper: data.name.toUpperCase() })) as any;
         expect(typeof transformed.pipeline).toBe("function");
     });
 });

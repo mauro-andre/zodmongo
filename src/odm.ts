@@ -22,7 +22,7 @@ interface SnapshotMeta {
 }
 
 type SchemaWithPipeline<T extends z.ZodTypeAny> = T & {
-    pipeline: () => Document[];
+    pipeline: (visited?: Set<string>) => Document[];
     toSave: (data: z.input<T>) => z.output<T>;
 };
 
@@ -101,9 +101,28 @@ const getObjectShape = (
 // PIPELINE GENERATION
 // ============================================
 
-const generatePipeline = (schema: z.ZodTypeAny): Document[] => {
+const generatePipeline = (
+    schema: z.ZodTypeAny,
+    visited: Set<string> = new Set(),
+): Document[] => {
     const pipeline: Document[] = [];
     const projection: Record<string, 1> = {};
+
+    const buildNestedPipeline = (
+        fieldSchema: z.ZodTypeAny,
+        fieldUnwrapped: z.ZodTypeAny,
+        collection: string,
+    ): Document[] => {
+        if (visited.has(collection)) {
+            // Cycle detected — truncate: no nested pipeline
+            return [];
+        }
+        const nextVisited = new Set(visited);
+        nextVisited.add(collection);
+        if (hasPipeline(fieldSchema)) return fieldSchema.pipeline(nextVisited);
+        if (hasPipeline(fieldUnwrapped)) return fieldUnwrapped.pipeline(nextVisited);
+        return [];
+    };
 
     const process = (currentSchema: z.ZodTypeAny, prefix: string) => {
         const unwrapped = unwrapSchema(currentSchema);
@@ -123,11 +142,11 @@ const generatePipeline = (schema: z.ZodTypeAny): Document[] => {
                 getRelationMeta(innerSchema) ?? getRelationMeta(innerUnwrapped);
 
             if (relationMeta) {
-                const nestedPipeline = hasPipeline(innerSchema)
-                    ? innerSchema.pipeline()
-                    : hasPipeline(innerUnwrapped)
-                      ? innerUnwrapped.pipeline()
-                      : [];
+                const nestedPipeline = buildNestedPipeline(
+                    innerSchema,
+                    innerUnwrapped,
+                    relationMeta.collection,
+                );
 
                 pipeline.push({
                     $lookup: {
@@ -168,11 +187,11 @@ const generatePipeline = (schema: z.ZodTypeAny): Document[] => {
                     getRelationMeta(fieldSchema) ?? getRelationMeta(fieldUnwrapped);
 
                 if (relationMeta) {
-                    const nestedPipeline = hasPipeline(fieldSchema)
-                        ? fieldSchema.pipeline()
-                        : hasPipeline(fieldUnwrapped)
-                          ? fieldUnwrapped.pipeline()
-                          : [];
+                    const nestedPipeline = buildNestedPipeline(
+                        fieldSchema,
+                        fieldUnwrapped,
+                        relationMeta.collection,
+                    );
 
                     pipeline.push({
                         $lookup: {
@@ -285,15 +304,18 @@ const transformForSave = (schema: z.ZodTypeAny, data: any): any => {
 // PUBLIC API
 // ============================================
 
-export const getPipeline = (schema: z.ZodTypeAny): Document[] => {
+export const getPipeline = (
+    schema: z.ZodTypeAny,
+    visited?: Set<string>,
+): Document[] => {
     if (hasPipeline(schema)) {
-        return schema.pipeline();
+        return schema.pipeline(visited);
     }
     const unwrapped = unwrapSchema(schema);
     if (hasPipeline(unwrapped)) {
-        return unwrapped.pipeline();
+        return unwrapped.pipeline(visited);
     }
-    return generatePipeline(unwrapped);
+    return generatePipeline(unwrapped, visited);
 };
 
 const hasToSave = (
@@ -332,7 +354,7 @@ export const dbSchema = <T extends z.ZodRawShape>(
     shape: T,
 ): SchemaWithPipeline<ReturnType<typeof dbModelSchema.extend<T>>> => {
     const schema = dbModelSchema.extend(shape);
-    const pipelineFn = () => generatePipeline(schema);
+    const pipelineFn = (visited?: Set<string>) => generatePipeline(schema, visited);
     const toSaveFn = (data: z.input<typeof schema>) => {
         const parsed = schema.parse(data);
         return transformForSave(schema, parsed);
@@ -361,7 +383,7 @@ export const embeddedSchema = <T extends z.ZodRawShape>(
     shape: T,
 ): SchemaWithPipeline<z.ZodObject<T>> => {
     const schema = z.object(shape);
-    const pipelineFn = () => generatePipeline(schema);
+    const pipelineFn = (visited?: Set<string>) => generatePipeline(schema, visited);
     const toSaveFn = (data: z.input<typeof schema>) => {
         const parsed = schema.parse(data);
         return transformForSave(schema, parsed);
