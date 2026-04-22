@@ -157,6 +157,50 @@ describe("relation", () => {
         const result = relSchema.parse({ name: "Acme" });
         expect(result.name).toBe("Acme");
     });
+
+    it("should NOT mutate the source schema", () => {
+        const sceneSchema = dbSchema({ name: z.string() });
+
+        relation(sceneSchema, { collection: "scenes" });
+
+        // Original schema must remain untouched — no _relation leaked onto it
+        expect((sceneSchema as any)._relation).toBeUndefined();
+
+        // And it must still behave as a primary schema when used on its own:
+        // toSave should produce a document, not an ObjectId reference.
+        const result: any = sceneSchema.toSave({ name: "Living room" });
+
+        expect(result).not.toBeInstanceOf(ObjectId);
+        expect(result.name).toBe("Living room");
+    });
+
+    it("should not cross-contaminate when the same schema is used as a relation in multiple places", () => {
+        const tagSchema = dbSchema({ label: z.string() });
+
+        const postSchema = dbSchema({
+            title: z.string(),
+            tag: relation(tagSchema, { collection: "tags" }),
+        });
+        const articleSchema = dbSchema({
+            heading: z.string(),
+            tag: relation(tagSchema, {
+                collection: "tags",
+                foreignField: "slug",
+            }),
+        });
+
+        // Each call produces an isolated wrapper; the shared tagSchema is clean.
+        expect((tagSchema as any)._relation).toBeUndefined();
+
+        const postPipeline = postSchema.pipeline();
+        const articlePipeline = articleSchema.pipeline();
+
+        const postLookup = postPipeline.find((s) => "$lookup" in s);
+        const articleLookup = articlePipeline.find((s) => "$lookup" in s);
+
+        expect(postLookup?.$lookup.foreignField).toBe("_id");
+        expect(articleLookup?.$lookup.foreignField).toBe("slug");
+    });
 });
 
 // ============================================

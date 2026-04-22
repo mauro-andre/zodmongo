@@ -121,7 +121,9 @@ const generatePipeline = (
         nextVisited.add(collection);
         if (hasPipeline(fieldSchema)) return fieldSchema.pipeline(nextVisited);
         if (hasPipeline(fieldUnwrapped)) return fieldUnwrapped.pipeline(nextVisited);
-        return [];
+        // The relation wrapper is a clone, so it doesn't carry `pipeline`;
+        // fall back to generating it inline from the schema's shape.
+        return generatePipeline(fieldUnwrapped, nextVisited);
     };
 
     const process = (currentSchema: z.ZodTypeAny, prefix: string) => {
@@ -336,15 +338,33 @@ export const toSave = <T extends z.ZodTypeAny>(
     return transformForSave(unwrapped, parsed);
 };
 
+// Clone a Zod v4 schema into a fresh, independent instance.
+// `Object.create(schema)` isn't enough because Zod v4 installs chainable
+// methods (`.nullable()`, `.optional()`, `.array()`, …) as own properties
+// that close over the *instance* they were installed on — so invoking them
+// through a prototype wrapper falls through to the base schema and any
+// marker set on the wrapper is discarded by the resulting chain.
+const cloneSchema = <T extends z.ZodTypeAny>(schema: T): T => {
+    const ctor = (schema as any)._zod?.constr;
+    const def = (schema as any)._zod?.def;
+    if (typeof ctor !== "function" || !def) {
+        // Fallback for anything that doesn't expose Zod v4 internals.
+        return Object.create(schema) as T;
+    }
+    return new ctor(def) as T;
+};
+
 export const relation = <T extends z.ZodTypeAny>(
     schema: T,
     config: RelationConfig,
 ): T & RelationMeta => {
-    return Object.assign(schema, { _relation: config });
+    const wrapper = cloneSchema(schema) as T & RelationMeta;
+    wrapper._relation = config;
+    return wrapper;
 };
 
 export const snapshot = <T extends z.ZodTypeAny>(schema: T): T => {
-    const wrapper = Object.create(schema) as T & SnapshotMeta;
+    const wrapper = cloneSchema(schema) as T & SnapshotMeta;
     wrapper._snapshot = true;
     (wrapper as any)._relation = undefined;
     return wrapper;
