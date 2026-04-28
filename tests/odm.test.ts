@@ -361,6 +361,103 @@ describe("getPipeline", () => {
         expect(lookupStage!.$lookup.from).toBe("companies");
     });
 
+    it("should generate top-level $lookup for nested relation wrapped with .nullable().optional()", () => {
+        // Reproducer for the my-ha bug report: a relation whose target is
+        // itself a schema with relations, wrapped with .nullable().optional().
+        // Pre-fix: relation() mutated the target; .nullable().optional() in
+        // Zod 4 lost the mutation, so getPipeline failed to detect _relation
+        // and recursed into the nested schema's fields instead — generating
+        // bogus $lookups with dot-notation localField like "app.stack".
+        const stackSchema = dbSchema({ name: z.string() });
+        const appSchema = dbSchema({
+            name: z.string(),
+            stack: relation(stackSchema, { collection: "stacks" }),
+        });
+        const domainSchema = dbSchema({
+            domain: z.string(),
+            app: relation(appSchema, { collection: "apps" })
+                .nullable()
+                .optional(),
+        });
+
+        const pipeline = getPipeline(domainSchema);
+
+        // Top-level $lookup must be on "app", not "app.stack".
+        const appLookup = pipeline.find(
+            (s) => s.$lookup && s.$lookup.as === "app",
+        );
+        expect(appLookup).toBeDefined();
+        expect(appLookup!.$lookup.from).toBe("apps");
+        expect(appLookup!.$lookup.localField).toBe("app");
+
+        // No bogus dot-notation lookup at the top level.
+        const bogus = pipeline.find(
+            (s) => s.$lookup && s.$lookup.localField === "app.stack",
+        );
+        expect(bogus).toBeUndefined();
+
+        // Nested pipeline for apps should include the stacks lookup.
+        const nested = appLookup!.$lookup.pipeline as any[];
+        expect(nested).toBeDefined();
+        const stackLookup = nested.find(
+            (s) => s.$lookup && s.$lookup.from === "stacks",
+        );
+        expect(stackLookup).toBeDefined();
+        expect(stackLookup!.$lookup.localField).toBe("stack");
+    });
+
+    it("should generate top-level $lookup when the relation target is a transformed schema (ZodPipe) wrapped with .nullable().optional()", () => {
+        // Bug report: appSchema is built with .transform(...), which makes it
+        // a ZodPipe in Zod 4. relation() clones the pipe and sets _relation
+        // on the clone, but unwrapSchema descends past the pipe into pipe.in
+        // (the original base schema, without _relation) — so the marker is
+        // lost and the pipeline recurses into sub-fields generating bogus
+        // dot-notation $lookups like "app.stack".
+        const stackSchema = dbSchema({ name: z.string() });
+        const appBaseSchema = dbSchema({
+            name: z.string(),
+            stack: relation(stackSchema, { collection: "stacks" }),
+        });
+        const appSchema = appBaseSchema.transform((data) => ({
+            ...data,
+            upper: data.name.toUpperCase(),
+        }));
+
+        const domainSchema = dbSchema({
+            domain: z.string(),
+            app: relation(appSchema, { collection: "apps" })
+                .nullable()
+                .optional(),
+        });
+
+        const pipeline = getPipeline(domainSchema);
+
+        const appLookup = pipeline.find(
+            (s) => s.$lookup && s.$lookup.as === "app",
+        );
+        expect(appLookup, "should generate top-level $lookup for `app`").toBeDefined();
+        expect(appLookup!.$lookup.from).toBe("apps");
+        expect(appLookup!.$lookup.localField).toBe("app");
+        expect(appLookup!.$lookup.foreignField).toBe("_id");
+
+        // No bogus dot-notation lookup leaking through.
+        const dotted = pipeline.filter(
+            (s) =>
+                s.$lookup &&
+                typeof s.$lookup.localField === "string" &&
+                s.$lookup.localField.includes("."),
+        );
+        expect(dotted).toEqual([]);
+
+        // Nested pipeline must still resolve the inner stack relation.
+        const nested = (appLookup!.$lookup.pipeline as any[]) ?? [];
+        const stackLookup = nested.find(
+            (s) => s.$lookup && s.$lookup.from === "stacks",
+        );
+        expect(stackLookup).toBeDefined();
+        expect(stackLookup!.$lookup.localField).toBe("stack");
+    });
+
     it("should use custom foreignField in $lookup", () => {
         const schema = dbSchema({
             name: z.string(),

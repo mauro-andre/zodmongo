@@ -63,8 +63,33 @@ const unwrapSchema = (schema: z.ZodTypeAny): z.ZodTypeAny => {
     return inner;
 };
 
+// Walks the wrapper chain (optional/nullable/default/pipe) looking for the
+// `_relation` marker. The marker may sit on an intermediate node — most
+// importantly when the relation target is a `ZodPipe` (e.g. coming from
+// `.transform()`), since the marker is set on the pipe clone but
+// `unwrapSchema` descends past it via `def.in` into the base schema.
 const getRelationMeta = (schema: z.ZodTypeAny): RelationConfig | undefined => {
-    return (schema as z.ZodTypeAny & RelationMeta)._relation;
+    let inner: z.ZodTypeAny | undefined = schema;
+    const seen = new Set<unknown>();
+    while (inner && !seen.has(inner)) {
+        seen.add(inner);
+        const meta = (inner as z.ZodTypeAny & RelationMeta)._relation;
+        if (meta) return meta;
+        const typeName = getTypeName(inner);
+        const def = getDef(inner);
+        if (
+            typeName === "optional" ||
+            typeName === "nullable" ||
+            typeName === "default"
+        ) {
+            inner = def.innerType;
+        } else if (typeName === "pipe") {
+            inner = def.in;
+        } else {
+            return undefined;
+        }
+    }
+    return undefined;
 };
 
 const isSnapshot = (schema: z.ZodTypeAny): boolean => {
