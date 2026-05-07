@@ -1,7 +1,15 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { ObjectId } from "mongodb";
 import { z } from "zod/v4";
-import { connect, close, getDb, save, findMany, deleteMany } from "../src/engine.js";
+import {
+    connect,
+    close,
+    getDb,
+    save,
+    findMany,
+    deleteMany,
+    insertMany,
+} from "../src/engine.js";
 import { dbModelSchema } from "../src/schema.js";
 
 const MONGO_URI = "mongodb://localhost:27017";
@@ -27,7 +35,10 @@ afterAll(async () => {
 beforeEach(async () => {
     const db = getDb();
     const collections = await db.listCollections().toArray();
+    // Skip system.* — Mongo manages those, and dropping the user collection
+    // (e.g. a time-series one) cleans up its system.views entry automatically.
     for (const col of collections) {
+        if (col.name.startsWith("system.")) continue;
         await db.dropCollection(col.name);
     }
 });
@@ -489,5 +500,127 @@ describe("deleteMany", () => {
 
         const result = await deleteMany("nested", { "company.id": refId.toString() });
         expect(result.deletedCount).toBe(1);
+    });
+});
+
+// ============================================
+// insertMany
+// ============================================
+
+describe("insertMany", () => {
+    it("should insert N new documents without id", async () => {
+        const users: User[] = [
+            userSchema.parse({ name: "A", email: "a@b.com" }),
+            userSchema.parse({ name: "B", email: "b@b.com" }),
+            userSchema.parse({ name: "C", email: "c@b.com" }),
+        ];
+
+        const result = await insertMany("users", users);
+
+        expect(result.acknowledged).toBe(true);
+        expect(result.insertedCount).toBe(3);
+        for (const user of users) {
+            expect(user.id).toBeDefined();
+            expect(typeof user.id).toBe("string");
+            expect(ObjectId.isValid(user.id!)).toBe(true);
+        }
+
+        const fetched = await findMany<User>("users");
+        expect(fetched).toHaveLength(3);
+    });
+
+    it("should use the pre-provided id when present", async () => {
+        const presetId = new ObjectId().toString();
+        const user = userSchema.parse({ name: "Preset", email: "p@b.com" });
+        user.id = presetId;
+
+        await insertMany("users", [user]);
+
+        expect(user.id).toBe(presetId);
+        const fetched = await findMany<User>("users", { id: presetId });
+        expect(fetched).toHaveLength(1);
+        expect(fetched[0]!.name).toBe("Preset");
+    });
+
+    it("should set createdAt and updatedAt with the same batch timestamp", async () => {
+        const users: User[] = [
+            userSchema.parse({ name: "X", email: "x@b.com" }),
+            userSchema.parse({ name: "Y", email: "y@b.com" }),
+        ];
+
+        await insertMany("users", users);
+
+        const db = getDb();
+        const raw = await db.collection("users").find().toArray();
+        expect(raw).toHaveLength(2);
+        for (const r of raw) {
+            expect(r.createdAt).toBeInstanceOf(Date);
+            expect(r.updatedAt).toBeInstanceOf(Date);
+            expect(r.createdAt.getTime()).toBe(r.updatedAt.getTime());
+        }
+        expect(raw[0]!.createdAt.getTime()).toBe(raw[1]!.createdAt.getTime());
+    });
+
+    it("should be a no-op for an empty array", async () => {
+        const result = await insertMany("users", []);
+        expect(result.acknowledged).toBe(true);
+        expect(result.insertedCount).toBe(0);
+        expect(result.insertedIds).toEqual({});
+
+        const fetched = await findMany<User>("users");
+        expect(fetched).toHaveLength(0);
+    });
+
+    it("should apply transformDocForSave to each doc (string id → ObjectId)", async () => {
+        const companyId = new ObjectId().toString();
+        const docs = [
+            { name: "doc1", company: { id: companyId } },
+            { name: "doc2", company: { id: companyId } },
+        ] as any[];
+
+        await insertMany("things", docs);
+
+        const db = getDb();
+        const raw = await db.collection("things").find().toArray();
+        expect(raw).toHaveLength(2);
+        for (const r of raw) {
+            expect(r.company._id).toBeInstanceOf(ObjectId);
+            expect(r.company._id.toString()).toBe(companyId);
+        }
+    });
+
+    it("should work on a MongoDB time-series collection", async () => {
+        const db = getDb();
+        await db.createCollection("metrics", {
+            timeseries: {
+                timeField: "ts",
+                metaField: "k",
+                granularity: "seconds",
+            },
+        });
+
+        const result = await insertMany("metrics", [
+            { ts: new Date(), k: "a", value: 1 } as any,
+            { ts: new Date(), k: "b", value: 2 } as any,
+        ]);
+
+        expect(result.insertedCount).toBe(2);
+        const docs = await db.collection("metrics").find().toArray();
+        expect(docs).toHaveLength(2);
+    });
+
+    it("save() rejects on time-series collections (sanity check for insertMany motivation)", async () => {
+        const db = getDb();
+        await db.createCollection("metrics2", {
+            timeseries: {
+                timeField: "ts",
+                metaField: "k",
+                granularity: "seconds",
+            },
+        });
+
+        await expect(
+            save("metrics2", { ts: new Date(), k: "a", value: 1 } as any),
+        ).rejects.toThrow();
     });
 });

@@ -1,5 +1,5 @@
 import { MongoClient, type Db, ObjectId } from "mongodb";
-import type { Document, UpdateResult } from "mongodb";
+import type { Document, UpdateResult, InsertManyResult } from "mongodb";
 import type { DbModel } from "./schema.js";
 import {
     transformDoc,
@@ -69,6 +69,10 @@ interface FindOptions {
 
 interface SaveOptions {
     upsert?: boolean;
+}
+
+interface InsertManyOptions {
+    ordered?: boolean;
 }
 
 // --- Database Operations ---
@@ -192,11 +196,55 @@ async function findMany<T>(
     return rawDocs.map(transformDoc<T>);
 }
 
+const insertMany = async <T extends DbModel>(
+    collectionName: string,
+    docs: T[],
+    options: InsertManyOptions = {},
+): Promise<InsertManyResult> => {
+    if (docs.length === 0) {
+        return {
+            acknowledged: true,
+            insertedCount: 0,
+            insertedIds: {},
+        };
+    }
+
+    const db = getDb();
+    const now = new Date();
+
+    const transformed = docs.map((doc) => {
+        const { id, createdAt: _c, updatedAt: _u, ...docData } = doc;
+        const data = transformDocForSave({ ...docData });
+        const _id = id ? new ObjectId(id) : new ObjectId();
+        return { _id, ...data, createdAt: now, updatedAt: now };
+    });
+
+    const result = await db
+        .collection(collectionName)
+        .insertMany(transformed, options);
+
+    docs.forEach((doc, i) => {
+        const insertedId = result.insertedIds[i];
+        if (insertedId) doc.id = insertedId.toString();
+    });
+
+    return result;
+};
+
 const deleteMany = async (collectionName: string, filter: any) => {
     const transformedFilter = transformMatchQuery(filter);
     const db = getDb();
     return await db.collection(collectionName).deleteMany(transformedFilter);
 };
 
-export { connect, getDb, close, save, findMany, deleteMany, trackPromise };
-export type { PaginateResponse, FindOptions, SaveOptions };
+export {
+    connect,
+    getDb,
+    close,
+    save,
+    findMany,
+    deleteMany,
+    insertMany,
+    trackPromise,
+};
+export type { PaginateResponse, FindOptions, SaveOptions, InsertManyOptions };

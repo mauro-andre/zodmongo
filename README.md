@@ -208,6 +208,28 @@ await deleteMany("users", { email: "m@b.com" });
 await deleteMany("users", { id: "507f1f77bcf86cd799439011" });
 ```
 
+### `insertMany(collection, docs, options?)`
+
+Batch insert with the same id/timestamp semantics as `save`. Required for MongoDB time-series collections, which reject every update operation — so `save`'s upsert can't be used there.
+
+```typescript
+const events = [
+    { ts: new Date(), key: "a", value: 1 },
+    { ts: new Date(), key: "b", value: 2 },
+];
+
+const result = await insertMany("metrics", events);
+// result.insertedCount === 2
+// each doc in `events` is mutated in-place with its assigned `id`
+```
+
+- No-op for an empty array (returns `{ acknowledged: true, insertedCount: 0, insertedIds: {} }` without touching the DB).
+- Each doc gets `_id`, `createdAt`, and `updatedAt` set automatically. All docs in the batch share the same timestamp.
+- Pre-provided `id` strings are honored and converted to `ObjectId`.
+- Returns the driver's `InsertManyResult`.
+
+Use it for append-only data without upsert semantics — telemetry, logs, time-series. For everything else, prefer `save`.
+
 ## Relations
 
 Declare references between collections. The ODM generates `$lookup` pipelines automatically.

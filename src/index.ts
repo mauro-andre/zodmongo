@@ -5,6 +5,7 @@ export {
     save,
     findMany,
     deleteMany,
+    insertMany,
     trackPromise,
 } from "./engine.js";
 
@@ -19,6 +20,11 @@ export {
     toSave,
 } from "./odm.js";
 
-export type { PaginateResponse, FindOptions, SaveOptions } from "./engine.js";
+export type {
+    PaginateResponse,
+    FindOptions,
+    SaveOptions,
+    InsertManyOptions,
+} from "./engine.js";
 export type { DbModel, Id } from "./schema.js";
 export type { RelationConfig, SchemaWithPipeline } from "./odm.js";
